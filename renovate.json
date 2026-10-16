@@ -1,0 +1,37 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "helpers:pinGitHubActionDigests",
+    ":semanticCommitsDisabled"
+  ],
+  "commitMessagePrefix": "chore(deps):",
+  "commitMessageLowerCase": "always",
+  "baseBranches": [
+    "develop"
+  ],
+  "labels": [
+    "dependencies"
+  ],
+  "prConcurrentLimit": 3,
+  "schedule": [
+    "before 6am on monday"
+  ],
+  "packageRules": [
+    {
+      "description": "Actions: mantener el SHA pineado y el comentario # vX.Y.Z",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "pinDigests": true,
+      "groupName": "github actions"
+    },
+    {
+      "matchManagers": [
+        "dockerfile",
+        "gomod"
+      ],
+      "groupName": "app"
+    }
+  ]
+}

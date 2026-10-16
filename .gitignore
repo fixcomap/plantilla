@@ -1,0 +1,6 @@
+# binario de go build local
+/app
+/plantilla
+*.test
+*.out
+.env*
