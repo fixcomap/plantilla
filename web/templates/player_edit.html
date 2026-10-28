@@ -23,15 +23,42 @@
     <label class="field check-inline"><input type="checkbox" name="active" value="1" {{if $p.Active}}checked{{end}}> En el equipo (desmarcar = baja; se conserva su historial)</label>
   {{if .User.Admin}}
   <fieldset class="field">
-    <legend>Cualidades (1 a 10, pasos de 0,5; solo admin)</legend>
+    <legend>Cualidades (de F a S; solo admin)</legend>
     <input type="hidden" name="with_skills" value="1">
-    <div class="skills-form">
-      {{range skillDefs}}
-      <label class="field"><span>{{.Name}}</span>
-        <input type="number" name="{{.Key}}" min="1" max="10" step="0.5" inputmode="decimal" value="{{scoreOf $sk .Key}}" placeholder="1–10">
-      </label>
+    <div class="grade-form" id="grades" data-letters="{{gradeLetters}}" data-values="{{gradeValues}}">
+      {{range skillDefs}}{{$k := .Key}}{{$i := gradeIndex $sk $k}}
+      <div class="grade-slider">
+        <span class="grade-name">{{.Name}}</span>
+        <div class="gs-track" style="--p:{{$i}}">
+          <input type="range" min="0" max="{{gradeMax}}" step="1" value="{{$i}}" aria-label="{{.Name}}">
+          <output class="gs-bubble" aria-hidden="true">{{if $i}}{{gradeOf $sk $k}}{{else}}–{{end}}</output>
+        </div>
+        <input type="hidden" name="{{$k}}" value="{{scoreOf $sk $k}}">
+      </div>
       {{end}}
     </div>
+    <script>
+      // La letra viaja sobre el tirador; el valor que se envía va en el campo
+      // oculto y solo cambia si se mueve (una nota antigua se conserva exacta).
+      (() => {
+        const g = document.getElementById('grades');
+        const L = g.dataset.letters.split(','), V = g.dataset.values.split(',');
+        g.querySelectorAll('.grade-slider').forEach((row) => {
+          const r = row.querySelector('input[type=range]'), out = row.querySelector('output');
+          const h = row.querySelector('input[type=hidden]'), track = row.querySelector('.gs-track');
+          const upd = (moved) => {
+            const i = +r.value;
+            out.textContent = i ? L[i - 1] : '–';
+            track.style.setProperty('--p', i);
+            r.setAttribute('aria-valuetext', i ? L[i - 1] : 'Sin valorar');
+            row.classList.toggle('unset', !i);
+            if (moved) h.value = i ? V[i - 1] : '';
+          };
+          r.addEventListener('input', () => upd(true));
+          upd(false);
+        });
+      })();
+    </script>
   </fieldset>
   {{end}}
   {{if .User.Admin}}

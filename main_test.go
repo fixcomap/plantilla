@@ -645,3 +645,23 @@ func mustJSON(t *testing.T, v any) []byte {
 	}
 	return b
 }
+
+func TestGrade(t *testing.T) {
+	for v, want := range map[float64]string{10: "S", 9.5: "S", 9: "A", 8: "B+", 7.5: "B+", 7: "B", 6: "B", 5: "C+", 4: "C", 3: "D+", 2: "D", 1: "F"} {
+		if got := grade(v); got != want {
+			t.Errorf("grade(%v) = %q, want %q", v, got, want)
+		}
+	}
+	// Cada letra se lee como ella misma.
+	for _, g := range grades {
+		if got := grade(g.Value); got != g.Letter {
+			t.Errorf("grade(%v) = %q, want %q", g.Value, got, g.Letter)
+		}
+	}
+	if got := gradeIndex(Skills{"pace": 10}, "pace"); got != len(grades) {
+		t.Errorf("gradeIndex(S) = %d, want %d", got, len(grades))
+	}
+	if got := gradeIndex(Skills{}, "pace"); got != 0 {
+		t.Errorf("gradeIndex(sin valorar) = %d, want 0", got)
+	}
+}

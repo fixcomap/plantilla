@@ -46,7 +46,7 @@
 
 {{/* Plegado: el formulario solo aparece al pulsar el botón (abierto si aún no hay jugadores). */}}
 <details class="add" {{if not .Data.Players}}open{{end}}>
-  <summary class="btn">+ Añadir jugador</summary>
+  <summary class="btn">Nuevo jugador</summary>
   <div class="card">
 <form method="post" action="/t/{{$t.ID}}/players">
   <div class="row">

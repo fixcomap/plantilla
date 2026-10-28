@@ -11,7 +11,7 @@
 {{end}}
 
 <details class="add" {{if not .Data.Boards}}open{{end}}>
-  <summary class="btn">+ Nueva pizarra</summary>
+  <summary class="btn">Nueva pizarra</summary>
   <form method="post" action="/t/{{$t.ID}}/boards" class="card">
     <label class="field"><span>Nombre *</span><input type="text" name="name" maxlength="24" placeholder="Salida de balón" required></label>
     <label class="field"><span>Empezar desde</span>

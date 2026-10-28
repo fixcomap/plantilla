@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 )
 
@@ -118,6 +119,51 @@ func hexGuide(level float64) string {
 func hexLabel(i int) [2]float64 {
 	ang := -math.Pi/2 + float64(i)*math.Pi/3
 	return [2]float64{100 + 94*math.Cos(ang), 100 + 94*math.Sin(ang)}
+}
+
+// Notas por letra, de F (la peor) a S (la mejor): el entrenador elige la
+// letra y se guarda su valor (1–10 repartido de forma uniforme), con el que se
+// calculan la media y el hexágono. Min: desde qué valor se muestra cada letra,
+// a medio camino entre valores, para leer también las notas numéricas antiguas.
+var grades = []struct {
+	Letter     string
+	Value, Min float64
+}{
+	{"S", 10, 9.5}, {"A", 9, 8.5}, {"B+", 8, 7.5}, {"B", 6.5, 6}, {"C+", 5.5, 5},
+	{"C", 4.5, 4}, {"D+", 3.5, 3}, {"D", 2, 1.5}, {"F", 1, 1},
+}
+
+func grade(v float64) string {
+	for _, g := range grades {
+		if v >= g.Min {
+			return g.Letter
+		}
+	}
+	return "F"
+}
+
+// gradeIndex: posición en el deslizador (0 = sin valorar, 1 = F … S).
+func gradeIndex(s Skills, key string) int {
+	v, ok := s[key]
+	if !ok {
+		return 0
+	}
+	for i, g := range grades {
+		if g.Letter == grade(v) {
+			return len(grades) - i
+		}
+	}
+	return 0
+}
+
+// gradeScale: letras y valores de peor a mejor, para el deslizador.
+func gradeScale() (letters, values string) {
+	var ls, vs []string
+	for i := len(grades) - 1; i >= 0; i-- {
+		ls = append(ls, grades[i].Letter)
+		vs = append(vs, strconv.FormatFloat(grades[i].Value, 'f', -1, 64))
+	}
+	return strings.Join(ls, ","), strings.Join(vs, ",")
 }
 
 func parseScore(s string) (float64, bool, error) {

@@ -1,0 +1,47 @@
+{{define "content"}}
+{{$t := .Team}}
+{{with .Data.Next}}
+<a class="scoreboard" href="/t/{{$t.ID}}/callups/{{.ID}}" style="display:block;text-decoration:none">
+  {{if $t.Crest}}<img class="sb-crest" src="/t/{{$t.ID}}/crest?v={{$t.Crest}}" alt="">{{end}}
+  <div class="label">Próximo partido{{if .Friendly}} · amistoso{{end}}</div>
+  <div class="vs"><small>vs</small>{{if .Rival}}{{.Rival}}{{else}}Rival por definir{{end}}</div>
+  <div class="when">{{weekday .Day}} {{.Day.Day}} {{month .Day}}{{with .Kickoff}} · {{.}}{{end}}</div>
+  <div class="facts">
+    {{with .Meet}}<span><svg class="i"><use href="#i-clock"/></svg>Citación {{.}}</span>{{end}}
+    {{with .Place}}<span><svg class="i"><use href="#i-pin"/></svg>{{.}}</span>{{end}}
+    {{if .Home.Valid}}<span>{{if .Home.Bool}}Local{{else}}Visitante{{end}}</span>{{end}}
+  </div>
+  <span class="btn">{{if .Count}}Convocatoria · {{.Count}} jugadores{{else}}Hacer la convocatoria{{end}}</span>
+</a>
+{{else}}
+<div class="scoreboard compact">
+  <div class="label">Próximo partido</div>
+  <div class="vs">Sin partido a la vista</div>
+  <a class="btn" href="/t/{{$t.ID}}/callups" style="margin-top:10px">Crear convocatoria</a>
+</div>
+{{end}}
+
+<h2>Entrenos</h2>
+<div class="card quick">
+  {{with .Data.Training}}
+  {{template "dateblock" .Day}}
+  <a class="grow" href="/t/{{$t.ID}}/trainings/{{.ID}}" style="text-decoration:none;color:inherit">
+    <div class="sub">Último entreno</div>
+    {{if .Total}}<div class="big-stat">{{.Present}}<small>/{{.Total}} vinieron</small></div>{{else}}<div>Sin lista</div>{{end}}
+  </a>
+  {{else}}
+  <div class="grow sub">Aún no hay entrenos.</div>
+  {{end}}
+  {{if not .Data.TrainedToday}}
+  <form method="post" action="/t/{{$t.ID}}/trainings"><input type="hidden" name="day" value="{{iso .Data.Today}}"><button>Pasar lista hoy</button></form>
+  {{end}}
+</div>
+
+{{with .Data.Last}}
+<h2>Último resultado</h2>
+<a class="scoreboard compact" href="/t/{{$t.ID}}/callups/{{.ID}}" style="display:block;text-decoration:none">
+  <div class="label">{{weekday .Day}} {{.Day.Day}} {{month .Day}} · vs {{.Rival}} <span class="result-tag {{.Outcome}}">{{.Outcome}}</span></div>
+  <div class="score">{{.Score}}</div>
+</a>
+{{end}}
+{{end}}

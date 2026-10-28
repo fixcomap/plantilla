@@ -1,7 +1,7 @@
 {{define "content"}}
 {{$t := .Team}}
 <details class="add" {{if not .Data.Trainings}}open{{end}}>
-  <summary class="btn">+ Pasar lista</summary>
+  <summary class="btn">Nuevo entreno</summary>
   <form method="post" action="/t/{{$t.ID}}/trainings" class="row card">
     <label class="field"><span>Fecha del entreno</span><input type="date" name="day" value="{{iso .Data.Today}}" required></label>
     <button>Empezar</button>
@@ -11,14 +11,15 @@
 <ul class="list">
   {{range .}}
   <li>
+    {{template "dateblock" .Day}}
     <a class="grow" href="/t/{{$t.ID}}/trainings/{{.ID}}">
-      {{weekday .Day}} {{date .Day}}{{with .Notes}}<div class="sub">{{.}}</div>{{end}}
+      <b>Entreno</b>{{with .Notes}}<div class="sub">{{.}}</div>{{end}}
     </a>
-    {{if .Total}}<span class="pill">{{.Present}}/{{.Total}}</span>{{else}}<span class="sub">sin lista</span>{{end}}
+    {{if .Total}}<span class="att">{{.Present}}<small>/{{.Total}}</small><span class="meter"><i style="width:{{pct .Present .Total}}%"></i></span></span>{{else}}<span class="sub">sin lista</span>{{end}}
   </li>
   {{end}}
 </ul>
 {{else}}
-<p class="empty">Sin entrenos registrados.</p>
+<p class="empty"><svg class="i"><use href="#i-train"/></svg>Sin entrenos registrados.</p>
 {{end}}
 {{end}}

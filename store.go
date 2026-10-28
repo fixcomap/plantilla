@@ -94,9 +94,13 @@ func migrate(ctx context.Context, db *sql.DB) error {
 }
 
 type Team struct {
-	ID   int64
-	Name string
+	ID    int64
+	Name  string
+	Color string // #rrggbb
+	Crest int64  // versión del escudo (unix de su subida); 0 = sin escudo
 }
+
+const teamCols = "t.id, t.name, t.color, coalesce(extract(epoch FROM cr.updated_at)::bigint, 0)"
 
 type Player struct {
 	ID        int64
@@ -256,10 +260,10 @@ func (s store) canAccess(ctx context.Context, email string, admin bool, teamID i
 }
 
 func (s store) teams(ctx context.Context, email string, admin bool) ([]Team, error) {
-	q := `SELECT t.id, t.name FROM teams t JOIN team_coaches c ON c.team_id = t.id
-	      WHERE c.email = $1 ORDER BY t.name`
+	q := `SELECT ` + teamCols + ` FROM teams t JOIN team_coaches c ON c.team_id = t.id
+	      LEFT JOIN team_crests cr ON cr.team_id = t.id WHERE c.email = $1 ORDER BY t.name`
 	if admin {
-		q = "SELECT id, name FROM teams WHERE $1 <> '' ORDER BY name"
+		q = "SELECT " + teamCols + " FROM teams t LEFT JOIN team_crests cr ON cr.team_id = t.id WHERE $1 <> '' ORDER BY t.name"
 	}
 	rows, err := s.db.QueryContext(ctx, q, email)
 	if err != nil {
@@ -269,7 +273,7 @@ func (s store) teams(ctx context.Context, email string, admin bool) ([]Team, err
 	var out []Team
 	for rows.Next() {
 		var t Team
-		if err := rows.Scan(&t.ID, &t.Name); err != nil {
+		if err := rows.Scan(&t.ID, &t.Name, &t.Color, &t.Crest); err != nil {
 			return nil, err
 		}
 		out = append(out, t)
@@ -278,9 +282,32 @@ func (s store) teams(ctx context.Context, email string, admin bool) ([]Team, err
 }
 
 func (s store) team(ctx context.Context, id int64) (Team, error) {
-	t := Team{ID: id}
-	err := s.db.QueryRowContext(ctx, "SELECT name FROM teams WHERE id = $1", id).Scan(&t.Name)
+	var t Team
+	err := s.db.QueryRowContext(ctx, "SELECT "+teamCols+" FROM teams t LEFT JOIN team_crests cr ON cr.team_id = t.id WHERE t.id = $1", id).
+		Scan(&t.ID, &t.Name, &t.Color, &t.Crest)
 	return t, err
+}
+
+func (s store) saveCrest(ctx context.Context, teamID int64, image []byte, contentType string) error {
+	_, err := s.db.ExecContext(ctx, `INSERT INTO team_crests (team_id, image, content_type) VALUES ($1, $2, $3)
+		ON CONFLICT (team_id) DO UPDATE SET image = EXCLUDED.image, content_type = EXCLUDED.content_type, updated_at = now()`,
+		teamID, image, contentType)
+	return err
+}
+
+func (s store) deleteCrest(ctx context.Context, teamID int64) error {
+	_, err := s.db.ExecContext(ctx, "DELETE FROM team_crests WHERE team_id = $1", teamID)
+	return err
+}
+
+func (s store) crest(ctx context.Context, teamID int64) (image []byte, contentType string, err error) {
+	err = s.db.QueryRowContext(ctx, "SELECT image, content_type FROM team_crests WHERE team_id = $1", teamID).Scan(&image, &contentType)
+	return image, contentType, err
+}
+
+func (s store) setTeamColor(ctx context.Context, id int64, color string) error {
+	_, err := s.db.ExecContext(ctx, "UPDATE teams SET color = $2 WHERE id = $1", id, color)
+	return err
 }
 
 // createTeam deja a quien lo crea como entrenador, para que lo siga viendo si

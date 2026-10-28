@@ -1,5 +1,6 @@
 {{define "content"}}
 {{$pr := .Data}}{{$p := $pr.Player}}
+{{template "back" (dict "href" (printf "/t/%d/players" .Team.ID) "label" "Jugadores")}}
 <div class="profile-head">
   <span class="profile-num">{{if $p.Number.Valid}}{{$p.Number.Int64}}{{end}}</span>
   <div>
@@ -24,15 +25,20 @@
   <h3>Cualidades</h3>
   {{if $sk}}
   <div class="skills-view">
-    <div class="rating">
-      <div class="rating-top"><b>{{score $sk.Overall}}</b><span>{{with $p.PositionList}}{{index . 0}}{{else}}—{{end}}</span></div>
-      <div class="rating-name">{{$p.DisplayName}}</div>
-      <ul class="rating-stats">{{range skillDefs}}<li><span>{{.Short}}</span><b>{{scoreOf $sk .Key}}</b></li>{{end}}</ul>
+    {{$num := ""}}{{if $p.Number.Valid}}{{$num = printf "%d" $p.Number.Int64}}{{end}}
+    <div class="scout">
+      <div class="scout-id">
+        <b>{{grade $sk.Overall}}</b>
+        <span class="scout-pos">{{with $p.PositionList}}{{index . 0}}{{else}}—{{end}}</span>
+        {{if $num}}<span class="scout-num">#{{$num}}</span>{{end}}
+        <span class="scout-name">{{$p.DisplayName}}</span>
+      </div>
+      <ul class="scout-stats">{{range skillDefs}}<li><span>{{.Short}}</span><b>{{gradeOf $sk .Key}}</b><i><em style="width:{{pctOf $sk .Key}}%"></em></i></li>{{end}}</ul>
     </div>
     <svg class="hex" viewBox="-20 -10 240 220" role="img" aria-label="Hexágono de cualidades">
       {{range $l := hexLevels}}<polygon class="guide" points="{{hexGuide $l}}"/>{{end}}
       <polygon class="value" points="{{$sk.Hex}}"/>
-      {{range $i, $d := skillDefs}}{{$xy := hexLabel $i}}<text x="{{index $xy 0}}" y="{{index $xy 1}}">{{$d.Short}} {{scoreOf $sk $d.Key}}</text>{{end}}
+      {{range $i, $d := skillDefs}}{{$xy := hexLabel $i}}<text x="{{index $xy 0}}" y="{{index $xy 1}}">{{$d.Short}} {{gradeOf $sk $d.Key}}</text>{{end}}
     </svg>
   </div>
   {{else}}
@@ -83,5 +89,4 @@
 
 
 <p class="actions"><a class="btn" href="/t/{{.Team.ID}}/players/{{$p.ID}}/edit">Editar valores</a></p>
-<p><a href="/t/{{.Team.ID}}/players">← Jugadores</a></p>
 {{end}}

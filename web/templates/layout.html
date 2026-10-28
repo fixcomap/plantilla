@@ -2,35 +2,40 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#3b2f8f">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="{{with .Team}}{{.Color}}{{else}}#1d6b45{{end}}">
 <title>{{.Title}}{{with .Team}} · {{.Name}}{{end}}</title>
 <link rel="manifest" href="/static/manifest.webmanifest">
 <link rel="icon" href="/static/icon.svg">
 <link rel="stylesheet" href="/static/app.css">
+{{/* Antes de pintar: la página entra desde el lado hacia el que se deslizó (app.js). */}}
+<script>try{const d=sessionStorage.getItem("enter");if(d){document.documentElement.dataset.enter=d;sessionStorage.removeItem("enter")}}catch{}</script>
 </head>
-<body>
+<body style="{{teamStyle .Team}}" {{if .Team}}class="has-tabs"{{end}}>
+{{template "icons"}}
 {{if .User.Email}}
-<header>
+<header class="top">
+  {{with .Team}}{{if .Crest}}<a class="crest-img" href="/t/{{.ID}}" aria-label="Inicio"><img src="/t/{{.ID}}/crest?v={{.Crest}}" alt=""></a>{{else}}<a class="crest" href="/t/{{.ID}}" aria-label="Inicio">{{initials .Name}}</a>{{end}}{{else}}<a class="crest" href="/" aria-label="Inicio">P</a>{{end}}
   {{if and .Team (or .User.Admin (gt (len .Teams) 1))}}
   {{/* Enlaces y no <select> + JS: sin navegación construida en el cliente. */}}
   <details class="team-switch">
-    <summary>{{.Team.Name}} ▾</summary>
+    <summary>{{.Team.Name}} <svg class="i"><use href="#i-chevron"/></svg></summary>
     <ul>{{range .Teams}}{{if ne .ID $.Team.ID}}<li><a href="/t/{{.ID}}/{{if $.Tab}}{{$.Tab}}{{else}}trainings{{end}}">{{.Name}}</a></li>{{end}}{{end}}
       {{if .User.Admin}}<li class="all"><a href="/">Todos los equipos · + Nuevo equipo</a></li>{{end}}</ul>
   </details>
   {{else}}
   <h1>{{with .Team}}{{.Name}}{{else}}Equipos{{end}}</h1>
   {{end}}
-  <form method="post" action="/logout"><button class="ghost small">Salir</button></form>
+  {{if and .Team .User.Admin}}<a class="icon-btn {{if eq .Tab "settings"}}on{{end}}" href="/t/{{.Team.ID}}/settings" aria-label="Ajustes" title="Ajustes"><svg class="i"><use href="#i-gear"/></svg></a>{{end}}
+  <form method="post" action="/logout"><button class="icon-btn" aria-label="Salir" title="Salir"><svg class="i"><use href="#i-out"/></svg></button></form>
 </header>
 {{with .Team}}
-<nav>
-  <a href="/t/{{.ID}}/trainings" {{if eq $.Tab "trainings"}}class="on"{{end}}>Entrenos</a>
-  <a href="/t/{{.ID}}/callups" {{if eq $.Tab "callups"}}class="on"{{end}}>Convocatorias</a>
-  <a href="/t/{{.ID}}/players" {{if eq $.Tab "players"}}class="on"{{end}}>Jugadores</a>
-  <a href="/t/{{.ID}}/boards" {{if eq $.Tab "boards"}}class="on"{{end}}>Pizarra</a>
-  {{if $.User.Admin}}<a href="/t/{{.ID}}/settings" {{if eq $.Tab "settings"}}class="on"{{end}}>Ajustes</a>{{end}}
+<nav class="tabs">
+  <a href="/t/{{.ID}}" {{if eq $.Tab "home"}}class="on"{{end}}><svg class="i"><use href="#i-home"/></svg>Inicio</a>
+  <a href="/t/{{.ID}}/trainings" {{if eq $.Tab "trainings"}}class="on"{{end}}><svg class="i"><use href="#i-train"/></svg>Entrenos</a>
+  <a href="/t/{{.ID}}/callups" {{if eq $.Tab "callups"}}class="on"{{end}}><svg class="i"><use href="#i-match"/></svg>Partidos</a>
+  <a href="/t/{{.ID}}/players" {{if eq $.Tab "players"}}class="on"{{end}}><svg class="i"><use href="#i-shirt"/></svg>Jugadores</a>
+  <a href="/t/{{.ID}}/boards" {{if eq $.Tab "boards"}}class="on"{{end}}><svg class="i"><use href="#i-board"/></svg>Pizarra</a>
 </nav>
 {{end}}
 {{end}}
@@ -41,6 +46,40 @@
 <script src="/static/app.js"></script>
 </body>
 </html>
+
+{{/* Iconos de trazo (24x24, currentColor): uno por sección y los de la cabecera. */}}
+{{define "icons"}}<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<symbol id="i-home" viewBox="0 0 24 24"><path d="M3.5 10.5 12 4l8.5 6.5V20h-5.5v-5.5h-6V20H3.5z"/></symbol>
+<symbol id="i-train" viewBox="0 0 24 24"><rect x="5" y="4.5" width="14" height="16" rx="2"/><path d="M9 4.5V3h6v1.5M8.5 12.5l2.5 2.5 4.5-5"/></symbol>
+<symbol id="i-match" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="m12 8.2 3.4 2.4-1.3 4H9.9l-1.3-4zM12 8.2V3.5m3.4 7.1 4.4-1.4m-5.7 5.4 2.7 3.7m-6.8-3.7-2.7 3.7m1.4-7.7-4.4-1.4"/></symbol>
+<symbol id="i-shirt" viewBox="0 0 24 24"><path d="M9 3.5 3.5 6.5l2 4.2 2-1V20.5h9V9.7l2 1 2-4.2L15 3.5c-.5 1.7-1.6 2.6-3 2.6s-2.5-.9-3-2.6z"/></symbol>
+<symbol id="i-board" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="1.5"/><path d="M12 4.5v15"/><circle cx="12" cy="12" r="2.8"/><path d="m6 8 2 2m0-2-2 2m10 6.5 1.5-1.5m0 0V16m0-1h-1"/></symbol>
+<symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8m9.2 9.2 1.8 1.8M5.6 18.4l1.8-1.8m9.2-9.2 1.8-1.8"/></symbol>
+<symbol id="i-out" viewBox="0 0 24 24"><path d="M14 4.5h5v15h-5M10 8l-4 4 4 4M6 12h9.5"/></symbol>
+<symbol id="i-chevron" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></symbol>
+<symbol id="i-back" viewBox="0 0 24 24"><path d="m14.5 6-6 6 6 6"/></symbol>
+<symbol id="i-move" viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/></symbol>
+<symbol id="i-pass" viewBox="0 0 24 24"><path d="M4 19 19 5M11 5h8v8"/></symbol>
+<symbol id="i-run" viewBox="0 0 24 24"><path d="M4 19l2.5-2.5M9 14l2-2M13.5 9.5 15 8M11 5h8v8"/></symbol>
+<symbol id="i-dribble" viewBox="0 0 24 24"><path d="M3.5 18.5c1.5-3 3.5 0 5-2.5s0-4.5 2.5-5.5 3 1 5-1.5L19 6M13 5.5l6 .5-.5 6"/></symbol>
+<symbol id="i-laser" viewBox="0 0 24 24"><circle cx="16.5" cy="7.5" r="2.5"/><path d="M3.5 20.5 12 12M16.5 1.5v2M16.5 11.5v2M22.5 7.5h-2M12.5 7.5h-2"/></symbol>
+<symbol id="i-erase" viewBox="0 0 24 24"><path d="m14 4.5 6 6-9 9H6.5l-3-3z"/><path d="M8.5 10l6 6M11 19.5h9"/></symbol>
+<symbol id="i-token" viewBox="0 0 24 24"><circle cx="10" cy="13" r="6.5"/><path d="M19 2.5v6M16 5.5h6"/></symbol>
+<symbol id="i-undo" viewBox="0 0 24 24"><path d="M8.5 5 4 9.5 8.5 14"/><path d="M4 9.5h10a5.5 5.5 0 0 1 0 11h-3"/></symbol>
+<symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></symbol>
+<symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></symbol>
+<symbol id="i-share" viewBox="0 0 24 24"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5M5 12v8h14v-8"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 6.5h16M9.5 6.5V4h5v2.5M6.5 6.5l1 13.5h9l1-13.5"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s6.5-6 6.5-11a6.5 6.5 0 0 0-13 0c0 5 6.5 11 6.5 11z"/><circle cx="12" cy="10" r="2.3"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+</svg>{{end}}
+
+{{/* Volver a la lista de la sección: arriba, como en cualquier app. */}}
+{{define "back"}}<a class="back" href="{{.href}}"><svg class="i"><use href="#i-back"/></svg>{{.label}}</a>{{end}}
+
+{{/* Fecha como bloque de calendario: día de la semana, número y mes. */}}
+{{define "dateblock"}}<span class="dateblock"><small>{{weekday .}}</small><b>{{.Day}}</b><small>{{month .}}</small></span>{{end}}
 
 {{/* Entrenos del ciclo de un jugador: un chip por entreno (día + estado). */}}
 {{define "cycle"}}{{if .}}<div class="cycle">{{range .}}<span class="chip {{.Status}}" title="{{weekday .Day}} {{date .Day}}: {{if .Status}}{{statusLabel .Status}}{{else}}sin lista{{end}}">{{weekday .Day}} {{.Day.Day}} {{if .Status}}{{symbol .Status}}{{else}}·{{end}}</span>{{end}}</div>{{end}}{{end}}

@@ -24,21 +24,34 @@ type BoardPoint struct {
 	Y float64 `json:"y"`
 }
 
+// Kind: "pass" (continua), "dribble" (ondulada) o "" = carrera (discontinua,
+// la única que había antes de los tipos).
 type BoardArrow struct {
 	From BoardPoint `json:"from"`
 	To   BoardPoint `json:"to"`
+	Kind string     `json:"kind,omitempty"`
+}
+
+// BoardStep es un paso más de la jugada: dónde están las fichas (mismo orden
+// que Tokens), el balón y sus flechas. El paso 1 es Tokens/Ball/Arrows.
+type BoardStep struct {
+	Pos    []BoardPoint `json:"pos"`
+	Ball   BoardPoint   `json:"ball"`
+	Arrows []BoardArrow `json:"arrows"`
 }
 
 type BoardState struct {
 	Tokens []BoardToken `json:"tokens"`
 	Ball   BoardPoint   `json:"ball"`
 	Arrows []BoardArrow `json:"arrows"`
+	Steps  []BoardStep  `json:"steps,omitempty"`
 }
 
 const (
 	pitchW, pitchL = 68.0, 105.0
 	maxTokens      = 30
 	maxArrows      = 60
+	maxSteps       = 15 // pasos además del primero
 	maxLabel       = 24
 )
 
@@ -49,7 +62,7 @@ func (p *BoardPoint) clamp() { p.X, p.Y = clamp(p.X, 0, pitchW), clamp(p.Y, 0, p
 // sanitize acota lo que llega del navegador: número de elementos, textos y
 // coordenadas dentro del campo.
 func (s *BoardState) sanitize() error {
-	if len(s.Tokens) > maxTokens || len(s.Arrows) > maxArrows {
+	if len(s.Tokens) > maxTokens || len(s.Arrows) > maxArrows || len(s.Steps) > maxSteps {
 		return errors.New("demasiados elementos en la pizarra")
 	}
 	for i := range s.Tokens {
@@ -58,9 +71,30 @@ func (s *BoardState) sanitize() error {
 		t.Label, t.Name = cut(strings.TrimSpace(t.Label)), cut(strings.TrimSpace(t.Name))
 	}
 	s.Ball.clamp()
-	for i := range s.Arrows {
-		s.Arrows[i].From.clamp()
-		s.Arrows[i].To.clamp()
+	if err := sanitizeArrows(s.Arrows); err != nil {
+		return err
+	}
+	// Cada paso, con una posición por ficha: las que falten se quedan donde
+	// estaban en el paso 1.
+	for i := range s.Steps {
+		st := &s.Steps[i]
+		if len(st.Arrows) > maxArrows {
+			return errors.New("demasiados elementos en la pizarra")
+		}
+		for j := len(st.Pos); j < len(s.Tokens); j++ {
+			st.Pos = append(st.Pos, BoardPoint{s.Tokens[j].X, s.Tokens[j].Y})
+		}
+		st.Pos = st.Pos[:len(s.Tokens)]
+		for j := range st.Pos {
+			st.Pos[j].clamp()
+		}
+		st.Ball.clamp()
+		if err := sanitizeArrows(st.Arrows); err != nil {
+			return err
+		}
+		if st.Arrows == nil {
+			st.Arrows = []BoardArrow{}
+		}
 	}
 	if s.Tokens == nil {
 		s.Tokens = []BoardToken{}
@@ -69,6 +103,34 @@ func (s *BoardState) sanitize() error {
 		s.Arrows = []BoardArrow{}
 	}
 	return nil
+}
+
+func sanitizeArrows(as []BoardArrow) error {
+	for i := range as {
+		as[i].From.clamp()
+		as[i].To.clamp()
+		switch as[i].Kind {
+		case "", "pass", "dribble":
+		case "run":
+			as[i].Kind = ""
+		default:
+			return errors.New("tipo de flecha no válido")
+		}
+	}
+	return nil
+}
+
+// frame: posiciones, balón y flechas del paso i (0 = el primero).
+func (s BoardState) frame(i int) ([]BoardPoint, BoardPoint, []BoardArrow) {
+	if i > 0 && i <= len(s.Steps) {
+		st := s.Steps[i-1]
+		return st.Pos, st.Ball, st.Arrows
+	}
+	pos := make([]BoardPoint, len(s.Tokens))
+	for j, t := range s.Tokens {
+		pos[j] = BoardPoint{t.X, t.Y}
+	}
+	return pos, s.Ball, s.Arrows
 }
 
 func cut(s string) string {

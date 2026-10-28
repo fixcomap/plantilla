@@ -1,25 +1,69 @@
 {{define "content"}}
-{{$t := .Team}}{{$b := .Data}}
+{{$t := .Team}}{{$b := .Data.Board}}
+{{template "back" (dict "href" (printf "/t/%d/boards" $t.ID) "label" "Pizarras")}}
 <div class="board-head">
   <input type="text" id="board-name" maxlength="24" value="{{$b.Name}}" aria-label="Nombre de la pizarra">
   <button id="board-save">Guardar</button>
 </div>
-<div class="board-tools" role="toolbar" aria-label="Herramientas de la pizarra">
-  <button type="button" class="ghost small on" data-mode="move">✋ Mover</button>
-  <button type="button" class="ghost small" data-mode="arrow">↗ Flecha</button>
-  <button type="button" class="ghost small" data-mode="name">✎ Nombre</button>
-  <button type="button" class="ghost small" data-mode="remove">✕ Quitar</button>
-  <button type="button" class="ghost small" id="board-add">+ Ficha</button>
-  <button type="button" class="ghost small" id="board-undo">↶ Deshacer flecha</button>
-</div>
-<p class="sub" id="board-hint">Arrastra las fichas y el balón.</p>
-<svg id="board" class="board" viewBox="-3 -3 74 111" role="img" aria-label="Pizarra táctica"></svg>
-<p class="sub" id="board-status" aria-live="polite"></p>
-<script src="/static/board.js"></script>
-<script>initBoard(document.getElementById('board'), {{$b.State}});</script>
+<p class="sub board-status" id="board-status" aria-live="polite"></p>
 
-<form method="post" action="/t/{{$t.ID}}/boards/{{$b.ID}}/delete" onsubmit="return confirm('¿Borrar esta pizarra?')" style="margin-top:24px">
+<div class="board-stage">
+  <svg id="board" class="board" viewBox="-3 -3 74 111" role="img" aria-label="Pizarra táctica"></svg>
+  <div class="dock" role="toolbar" aria-label="Herramientas de la pizarra">
+    <button type="button" data-mode="move" class="on" aria-label="Mover" title="Mover"><svg class="i"><use href="#i-move"/></svg></button>
+    <button type="button" data-mode="pass" aria-label="Pase" title="Pase"><svg class="i"><use href="#i-pass"/></svg></button>
+    <button type="button" data-mode="run" aria-label="Carrera" title="Carrera"><svg class="i"><use href="#i-run"/></svg></button>
+    <button type="button" data-mode="dribble" aria-label="Conducción" title="Conducción"><svg class="i"><use href="#i-dribble"/></svg></button>
+    <button type="button" data-mode="laser" aria-label="Láser" title="Láser"><svg class="i"><use href="#i-laser"/></svg></button>
+    <button type="button" data-mode="remove" aria-label="Borrar" title="Borrar"><svg class="i"><use href="#i-erase"/></svg></button>
+    <span class="dock-sep"></span>
+    <button type="button" id="board-add" aria-label="Añadir ficha" title="Añadir ficha"><svg class="i"><use href="#i-token"/></svg></button>
+    <button type="button" id="board-undo" aria-label="Deshacer" title="Deshacer" disabled><svg class="i"><use href="#i-undo"/></svg></button>
+  </div>
+  <div class="dock-label" id="board-hint" aria-live="polite"></div>
+</div>
+
+<div class="steps" aria-label="Pasos de la jugada">
+  <div class="steps-list" id="board-steps"></div>
+  <button type="button" class="step-add" id="step-add" aria-label="Añadir paso" title="Añadir paso"><svg class="i"><use href="#i-plus"/></svg></button>
+  <button type="button" class="play" id="step-play"><svg class="i"><use href="#i-play"/></svg><span>Reproducir</span></button>
+</div>
+<p class="sub steps-hint">Cada paso guarda dónde están las fichas. Añade uno, mueve a los jugadores y dale a reproducir.</p>
+
+<div class="board-actions">
+  <button type="button" class="ghost" id="board-share"><svg class="i"><use href="#i-share"/></svg>Compartir imagen</button>
+  <button type="button" class="ghost" id="step-del"><svg class="i"><use href="#i-trash"/></svg>Quitar este paso</button>
+</div>
+
+<dialog id="board-pick" class="sheet">
+  <form method="dialog">
+    <h3 id="pick-title">Añadir ficha</h3>
+    <ul class="pick-list" id="pick-list"></ul>
+    <div class="row pick-free">
+      <input type="text" id="pick-name" maxlength="24" placeholder="Otro nombre (rival, invitado…)" aria-label="Otro nombre">
+      <button type="button" id="pick-free">Usar</button>
+    </div>
+    <div class="row">
+      <button type="button" class="ghost" id="pick-blank">Sin nombre</button>
+      <button value="cancel" class="ghost">Cancelar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="board-unsaved" class="modal">
+  <h3>Cambios sin guardar</h3>
+  <p class="sub">Si sales ahora, se pierden los cambios de esta pizarra.</p>
+  <div class="modal-actions">
+    <button type="button" data-act="save">Guardar y salir</button>
+    <button type="button" class="danger" data-act="discard">Descartar</button>
+    <button type="button" class="ghost" data-act="stay">Seguir editando</button>
+  </div>
+</dialog>
+
+<script src="/static/board.js"></script>
+<script>initBoard(document.getElementById('board'), {{$b.State}}, {{.Data.Players}});</script>
+
+<form method="post" action="/t/{{$t.ID}}/boards/{{$b.ID}}/delete" onsubmit="return confirm('¿Borrar esta pizarra?')" class="board-delete">
   <button class="danger small">Borrar pizarra</button>
 </form>
-<p><a href="/t/{{$t.ID}}/boards">← Pizarras</a></p>
 {{end}}
