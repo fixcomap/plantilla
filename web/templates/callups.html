@@ -1,26 +1,26 @@
 {{define "content"}}
 {{$t := .Team}}
-{{with .Data.Callups}}
-<ul class="list">
-  {{range .}}
-  <li>
-    <a class="grow" href="/t/{{$t.ID}}/callups/{{.ID}}">
-      {{weekday .Day}} {{date .Day}}{{with .Kickoff}} {{.}}{{end}}{{with .Rival}} · vs {{.}}{{end}}{{with .Place}}<div class="sub">{{.}}</div>{{end}}
-    </a>
-    {{if .Played}}<span class="pill result {{.Outcome}}">{{.Score}}</span>{{end}}
-    <span class="pill">{{.Count}}</span>
-  </li>
-  {{end}}
-</ul>
-{{else}}
-<p class="empty">Sin convocatorias.</p>
-{{end}}
-
 <details class="add" {{if not .Data.Callups}}open{{end}}>
-  <summary class="btn">+ Nueva convocatoria</summary>
+  <summary class="btn">Nuevo partido</summary>
   <form method="post" action="/t/{{$t.ID}}/callups" class="card">
     {{template "matchFields" .Data.Empty}}
     <button>Crear convocatoria</button>
   </form>
 </details>
+{{with .Data.Callups}}
+<ul class="list">
+  {{range .}}
+  <li>
+    {{template "dateblock" .Day}}
+    <a class="grow" href="/t/{{$t.ID}}/callups/{{.ID}}">
+      <b>{{if .Rival}}vs {{.Rival}}{{else}}Partido{{end}}</b>{{if .Friendly}} <span class="sub">· amistoso</span>{{end}}
+      <div class="sub">{{with .Kickoff}}{{.}}{{end}}{{if and .Kickoff .Place}} · {{end}}{{.Place}}{{if not (or .Kickoff .Place)}}{{.Count}} convocados{{end}}</div>
+    </a>
+    {{if .Played}}<span class="pill result {{.Outcome}}">{{.Score}}</span>{{else}}<span class="pill">{{.Count}}</span>{{end}}
+  </li>
+  {{end}}
+</ul>
+{{else}}
+<p class="empty"><svg class="i"><use href="#i-match"/></svg>Sin convocatorias.</p>
+{{end}}
 {{end}}

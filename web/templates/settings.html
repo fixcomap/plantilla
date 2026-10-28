@@ -1,5 +1,44 @@
 {{define "content"}}
 {{$t := .Team}}
+<h2>Color del equipo</h2>
+<form method="post" action="/t/{{$t.ID}}/color" class="card">
+  <div class="swatches" role="radiogroup" aria-label="Colores habituales">
+    {{range teamColors}}<label title="{{.}}"><input type="radio" name="color" value="{{.}}" {{if eq . $t.Color}}checked{{end}}><span style="--sw:{{.}}"></span></label>{{end}}
+  </div>
+  <p class="sub">Tiñe la cabecera, los botones y los dorsales. Si las camisetas tienen otro color, elígelo aquí:</p>
+  <div class="row" style="align-items:center">
+    <input type="color" id="custom-color" value="{{$t.Color}}" aria-label="Otro color" style="flex:0 0 48px;min-width:48px">
+    <button>Guardar color</button>
+  </div>
+</form>
+<script>
+  // El selector libre sustituye a la muestra elegida: se envía como "color".
+  document.getElementById('custom-color').addEventListener('input', e => {
+    const f = e.target.form;
+    f.querySelectorAll('input[name=color]').forEach(r => r.checked = false);
+    let h = f.querySelector('input[type=hidden][name=color]');
+    if (!h) { h = document.createElement('input'); h.type = 'hidden'; h.name = 'color'; f.append(h); }
+    h.value = e.target.value;
+    document.body.style.setProperty('--team', e.target.value);
+  });
+  document.querySelectorAll('.swatches input').forEach(r => r.addEventListener('change', () => {
+    r.form.querySelector('input[type=hidden][name=color]')?.remove();
+    document.body.style.setProperty('--team', r.value);
+  }));
+</script>
+
+<h2>Escudo</h2>
+<div class="card crest-set">
+  {{if $t.Crest}}<img src="/t/{{$t.ID}}/crest?v={{$t.Crest}}" alt="Escudo de {{$t.Name}}">{{else}}<span class="crest">{{initials $t.Name}}</span>{{end}}
+  <div class="grow">
+    <form method="post" action="/t/{{$t.ID}}/crest" enctype="multipart/form-data">
+      <label class="field"><span>PNG, JPEG o WebP, máx. 1 MB. Mejor cuadrado y con fondo transparente.</span><input type="file" name="image" accept="image/png,image/jpeg,image/webp" required></label>
+      <button>{{if $t.Crest}}Cambiar escudo{{else}}Subir escudo{{end}}</button>
+    </form>
+    {{if $t.Crest}}<form method="post" action="/t/{{$t.ID}}/crest/delete" onsubmit="return confirm('¿Quitar el escudo?')" style="margin-top:8px"><button class="danger small">Quitar escudo</button></form>{{end}}
+  </div>
+</div>
+
 <h2>Entrenadores</h2>
 <ul class="list">
   {{range .Data.Coaches}}

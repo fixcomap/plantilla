@@ -1,8 +1,11 @@
 {{define "content"}}
 {{$t := .Team}}{{$tr := .Data.Training}}
-<h2>{{weekday $tr.Day}} {{date $tr.Day}}</h2>
+<div class="roll-head">
+  <h2>{{weekday $tr.Day}} {{$tr.Day.Day}} {{month $tr.Day}}</h2>
+  {{if .Data.Rows}}<button type="button" class="ghost small" id="all-in" title="Marca como presentes a los que aún no tienen estado">Resto presentes</button>{{end}}
+</div>
 {{if .Data.Rows}}
-<p class="sub">✓ vino · T tarde · L lesionado · J justificada · ✗ no justificada</p>
+<div class="legend">{{range statuses}}<span class="chip {{.}}">{{symbol .}} {{statusLabel .}}</span>{{end}}</div>
 <form method="post">
   <ul class="list">
     {{range .Data.Rows}}{{$p := .Player}}{{$st := .Status}}
@@ -23,6 +26,13 @@
   const count = () => document.getElementById('count').textContent =
     document.querySelectorAll('input[value=presente]:checked, input[value=tarde]:checked').length;
   document.querySelectorAll('.seg input').forEach(b => b.addEventListener('change', count)); count();
+  // Lo normal es que vengan casi todos: se marcan las excepciones y el resto, de una vez.
+  document.getElementById('all-in').addEventListener('click', () => {
+    document.querySelectorAll('.seg').forEach(g => {
+      if (!g.querySelector('input:checked')) g.querySelector('input[value=presente]').checked = true;
+    });
+    count();
+  });
 </script>
 {{else}}
 <p class="empty">No hay jugadores activos. <a href="/t/{{$t.ID}}/players">Añádelos aquí</a>.</p>
