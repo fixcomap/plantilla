@@ -483,7 +483,7 @@ func TestFlow(t *testing.T) {
 	if body := do("GET", base+"/players/"+itoa(ps[0].ID), nil, 200).Body.String(); !strings.Contains(body, "Perfil izquierdo") {
 		t.Fatal("el perfil no muestra las notas al admin")
 	}
-	if body := do("GET", base+"/players/"+itoa(ps[0].ID), nil, 200).Body.String(); !strings.Contains(body, `class="rating"`) || !strings.Contains(body, "7,5") {
+	if body := do("GET", base+"/players/"+itoa(ps[0].ID), nil, 200).Body.String(); !strings.Contains(body, `class="scout"`) || !strings.Contains(body, "B&#43;") { // 7,5 = B+
 		t.Fatal("el perfil no muestra las cualidades al admin")
 	}
 
