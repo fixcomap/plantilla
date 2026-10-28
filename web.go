@@ -10,6 +10,7 @@ import (
 	"html/template"
 	"io"
 	"io/fs"
+	"math"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -17,6 +18,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 )
 
 //go:embed web/templates/*.html
@@ -66,6 +68,24 @@ var funcs = template.FuncMap{
 	"positions": func() []Position { return positions },
 	"skillDefs": func() []Skill { return skills },
 	"score":     fmtScore,
+	"grade":     grade,
+	"gradeOf": func(s Skills, k string) string {
+		if v, ok := s[k]; ok {
+			return grade(v)
+		}
+		return "—"
+	},
+	"gradeIndex": gradeIndex,
+	"pctOf":      func(s Skills, k string) int { return int(s[k] * 10) },
+	"gradeMax":   func() int { return len(grades) },
+	"gradeLetters": func() string {
+		l, _ := gradeScale()
+		return l
+	},
+	"gradeValues": func() string {
+		_, v := gradeScale()
+		return v
+	},
 	"hexGuide":  hexGuide,
 	"hexLevels": func() []float64 { return []float64{2, 4, 6, 8, 10} },
 	"hexLabel":  hexLabel,
@@ -77,6 +97,110 @@ var funcs = template.FuncMap{
 	},
 	"add":        func(a, b int) int { return a + b },
 	"lateWindow": func() int { return lateWindow },
+	"teamStyle":  teamStyle,
+	"dict": func(kv ...any) map[string]any {
+		m := map[string]any{}
+		for i := 0; i+1 < len(kv); i += 2 {
+			m[kv[i].(string)] = kv[i+1]
+		}
+		return m
+	},
+	// Colores de camiseta habituales para el selector de Ajustes.
+	"teamColors": func() []string {
+		return []string{"#1d6b45", "#0f3d8c", "#3a8fd9", "#b3121b", "#e8b100", "#5a2a82", "#111111", "#e05a00"}
+	},
+	"pct": func(a, b int) int {
+		if b == 0 {
+			return 0
+		}
+		return a * 100 / b
+	},
+	"initials": initials,
+	"month": func(t time.Time) string {
+		return [...]string{"ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"}[t.Month()-1]
+	},
+}
+
+var hexColor = regexp.MustCompile(`^#[0-9a-f]{6}$`)
+
+// teamStyle: variables CSS del color del equipo. --team es el color tal cual
+// (fondos), --team-fg el texto encima y --ink-light/--ink-dark el color para
+// texto y bordes sobre el fondo claro u oscuro, ajustado hasta tener contraste
+// (un equipo amarillo no deja enlaces amarillos sobre blanco).
+func teamStyle(t *Team) template.CSS {
+	c := "#1d6b45"
+	if t != nil && hexColor.MatchString(t.Color) {
+		c = t.Color
+	}
+	rgb := parseHex(c)
+	fg := "#fff"
+	if contrast(rgb, [3]float64{1, 1, 1}) < 3 {
+		fg = "#111"
+	}
+	light := toward(rgb, [3]float64{0, 0, 0}, [3]float64{.96, .95, .92})
+	dark := toward(rgb, [3]float64{1, 1, 1}, [3]float64{.07, .08, .07})
+	return template.CSS(fmt.Sprintf("--team:%s;--team-fg:%s;--ink-light:%s;--ink-dark:%s", c, fg, toHex(light), toHex(dark)))
+}
+
+func parseHex(c string) [3]float64 {
+	var out [3]float64
+	for i := range out {
+		v, _ := strconv.ParseUint(c[1+2*i:3+2*i], 16, 8)
+		out[i] = float64(v) / 255
+	}
+	return out
+}
+
+func toHex(c [3]float64) string {
+	return fmt.Sprintf("#%02x%02x%02x", int(c[0]*255+.5), int(c[1]*255+.5), int(c[2]*255+.5))
+}
+
+func luminance(c [3]float64) float64 {
+	var l [3]float64
+	for i, v := range c {
+		if v <= .03928 {
+			l[i] = v / 12.92
+		} else {
+			l[i] = math.Pow((v+.055)/1.055, 2.4)
+		}
+	}
+	return .2126*l[0] + .7152*l[1] + .0722*l[2]
+}
+
+func contrast(a, b [3]float64) float64 {
+	la, lb := luminance(a), luminance(b)
+	if la < lb {
+		la, lb = lb, la
+	}
+	return (la + .05) / (lb + .05)
+}
+
+// toward mezcla c con target en pasos del 10% hasta contraste 4.5 con bg.
+func toward(c, target, bg [3]float64) [3]float64 {
+	for i := 0; i < 10 && contrast(c, bg) < 4.5; i++ {
+		for j := range c {
+			c[j] += (target[j] - c[j]) * .1
+		}
+	}
+	return c
+}
+
+// initials: escudo de texto en la cabecera ("Cómpeta C.F. Infantil" → "CI").
+func initials(name string) string {
+	var out []rune
+	for _, w := range strings.Fields(name) {
+		r := []rune(w)
+		if len(r) > 2 && unicode.IsUpper(r[0]) && !strings.Contains(w, ".") {
+			out = append(out, r[0])
+		}
+	}
+	if len(out) == 0 {
+		out = append(out, []rune(strings.ToUpper(name))[0])
+	}
+	if len(out) > 2 {
+		out = out[:2]
+	}
+	return string(out)
 }
 
 // sentOff: sancionados ahora y expulsados en la temporada, sancionados primero.
@@ -327,7 +451,12 @@ func (a *app) routes(mux *http.ServeMux) {
 	t("GET /t/{team}/boards/{board}", a.boardPage)
 	t("POST /t/{team}/boards/{board}", a.saveBoard)
 	t("POST /t/{team}/boards/{board}/delete", a.deleteBoard)
+	t("GET /t/{team}/boards/{board}/imagen.png", a.boardImage)
 	t("GET /t/{team}/settings", adminOnly(a.settingsPage))
+	t("POST /t/{team}/color", adminOnly(a.saveColor))
+	t("POST /t/{team}/crest", adminOnly(a.uploadCrest))
+	t("POST /t/{team}/crest/delete", adminOnly(a.deleteCrest))
+	t("GET /t/{team}/crest", a.crestImage)
 	t("POST /t/{team}/coaches", adminOnly(a.addCoach))
 	t("POST /t/{team}/coaches/remove", adminOnly(a.removeCoach))
 	t("POST /t/{team}/template", adminOnly(a.uploadTemplate))
@@ -387,8 +516,46 @@ func teamURL(t Team, rest string) string {
 	return "/t/" + strconv.FormatInt(t.ID, 10) + rest
 }
 
+// teamHome: el próximo partido, el último jugado y el último entreno.
 func (a *app) teamHome(w http.ResponseWriter, r *http.Request, t Team) {
-	redirect(w, r, teamURL(t, "/trainings"), http.StatusSeeOther)
+	cs, err := a.st.callups(r.Context(), t.ID)
+	if err != nil {
+		a.fail(w, r, err)
+		return
+	}
+	ts, err := a.st.trainings(r.Context(), t.ID)
+	if err != nil {
+		a.fail(w, r, err)
+		return
+	}
+	data := map[string]any{"Today": today()}
+	// cs va de más reciente a más antiguo: el próximo es el último con día >= hoy.
+	for i, c := range cs {
+		if !c.Day.Before(today()) && !c.Played() {
+			data["Next"] = cs[i]
+		} else if c.Played() {
+			data["Last"] = cs[i]
+			break
+		}
+	}
+	if len(ts) > 0 {
+		data["Training"] = ts[0]
+		data["TrainedToday"] = ts[0].Day.Equal(today())
+	}
+	a.render(w, r, "team", view{Team: &t, Tab: "home", Title: "Inicio", Data: data})
+}
+
+func (a *app) saveColor(w http.ResponseWriter, r *http.Request, t Team) {
+	c := strings.ToLower(r.FormValue("color"))
+	if !hexColor.MatchString(c) {
+		httpError(w, r, "Color no válido.", http.StatusBadRequest)
+		return
+	}
+	if err := a.st.setTeamColor(r.Context(), t.ID, c); err != nil {
+		a.fail(w, r, err)
+		return
+	}
+	redirect(w, r, teamURL(t, "/settings"), http.StatusSeeOther)
 }
 
 // playersData: la plantilla con ciclo, disciplina y goles; la usan la
@@ -1272,7 +1439,54 @@ func (a *app) boardPage(w http.ResponseWriter, r *http.Request, t Team) {
 		a.fail(w, r, err)
 		return
 	}
-	a.render(w, r, "board", view{Team: &t, Tab: "boards", Title: b.Name, Data: b})
+	ps, err := a.st.players(r.Context(), t.ID, true)
+	if err != nil {
+		a.fail(w, r, err)
+		return
+	}
+	// Para poner jugadores de la plantilla en las fichas: dorsal y nombre.
+	type pick struct {
+		Label string `json:"label"`
+		Name  string `json:"name"`
+	}
+	picks := make([]pick, 0, len(ps))
+	for _, p := range ps {
+		pk := pick{Name: cut(p.DisplayName())}
+		if p.Number.Valid {
+			pk.Label = strconv.FormatInt(p.Number.Int64, 10)
+		}
+		picks = append(picks, pk)
+	}
+	a.render(w, r, "board", view{Team: &t, Tab: "boards", Title: b.Name, Data: map[string]any{"Board": b, "Players": picks}})
+}
+
+// boardImage: PNG de un paso de la pizarra guardada, para compartir.
+// ?descargar la sirve como adjunto (escritorio); sin él, en línea.
+func (a *app) boardImage(w http.ResponseWriter, r *http.Request, t Team) {
+	id, err := pathID(r, "board")
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	b, err := a.st.board(r.Context(), t.ID, id)
+	if err != nil {
+		a.fail(w, r, err)
+		return
+	}
+	step, _ := strconv.Atoi(r.URL.Query().Get("paso"))
+	img, err := renderBoard(b, t, max(step-1, 0))
+	if err != nil {
+		a.fail(w, r, err)
+		return
+	}
+	disp := "inline"
+	if r.URL.Query().Has("descargar") {
+		disp = "attachment"
+	}
+	w.Header().Set("Content-Type", "image/png")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`%s; filename="pizarra-%d.png"`, disp, b.ID))
+	w.Header().Set("Cache-Control", "private, no-cache")
+	_, _ = w.Write(img)
 }
 
 // saveBoard recibe JSON desde board.js ({name, state}); responde 204.
@@ -1286,7 +1500,7 @@ func (a *app) saveBoard(w http.ResponseWriter, r *http.Request, t Team) {
 		Name  string     `json:"name"`
 		State BoardState `json:"state"`
 	}
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&in); err != nil {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 256<<10)).Decode(&in); err != nil {
 		httpError(w, r, "Pizarra no válida.", http.StatusBadRequest)
 		return
 	}
@@ -1478,6 +1692,55 @@ func (a *app) saveLayout(w http.ResponseWriter, r *http.Request, t Team) {
 		return
 	}
 	redirect(w, r, teamURL(t, "/settings?imagen#imagen"), http.StatusSeeOther)
+}
+
+const maxCrestBytes = 1 << 20
+
+func (a *app) uploadCrest(w http.ResponseWriter, r *http.Request, t Team) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxCrestBytes+(64<<10))
+	f, _, err := r.FormFile("image")
+	if err != nil {
+		httpError(w, r, "Imagen no válida o mayor de 1 MB.", http.StatusBadRequest)
+		return
+	}
+	defer func() { _ = f.Close() }()
+	img, err := io.ReadAll(f)
+	if err != nil {
+		httpError(w, r, "Imagen no válida o mayor de 1 MB.", http.StatusBadRequest)
+		return
+	}
+	// Como la plantilla: tipo por contenido y sin SVG (podría llevar scripts).
+	ct := http.DetectContentType(img)
+	if ct != "image/png" && ct != "image/jpeg" && ct != "image/webp" {
+		httpError(w, r, "El escudo tiene que ser PNG, JPEG o WebP.", http.StatusBadRequest)
+		return
+	}
+	if err := a.st.saveCrest(r.Context(), t.ID, img, ct); err != nil {
+		a.fail(w, r, err)
+		return
+	}
+	redirect(w, r, teamURL(t, "/settings"), http.StatusSeeOther)
+}
+
+func (a *app) deleteCrest(w http.ResponseWriter, r *http.Request, t Team) {
+	if err := a.st.deleteCrest(r.Context(), t.ID); err != nil {
+		a.fail(w, r, err)
+		return
+	}
+	redirect(w, r, teamURL(t, "/settings"), http.StatusSeeOther)
+}
+
+func (a *app) crestImage(w http.ResponseWriter, r *http.Request, t Team) {
+	img, ct, err := a.st.crest(r.Context(), t.ID)
+	if err != nil {
+		a.fail(w, r, err)
+		return
+	}
+	w.Header().Set("Content-Type", ct)
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	// La URL lleva ?v=<versión>: al cambiar el escudo cambia la URL.
+	w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
+	_, _ = w.Write(img)
 }
 
 func (a *app) templateImage(w http.ResponseWriter, r *http.Request, t Team) {
