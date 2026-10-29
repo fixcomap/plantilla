@@ -15,7 +15,7 @@
 {{template "icons"}}
 {{if .User.Email}}
 <header class="top">
-  {{with .Team}}{{if .Crest}}<a class="crest-img" href="/t/{{.ID}}" aria-label="Inicio"><img src="/t/{{.ID}}/crest?v={{.Crest}}" alt=""></a>{{else}}<a class="crest" href="/t/{{.ID}}" aria-label="Inicio">{{initials .Name}}</a>{{end}}{{else}}<a class="crest" href="/" aria-label="Inicio">P</a>{{end}}
+  {{with .Team}}{{if .Crest}}<a class="crest-img" href="/t/{{.ID}}" aria-label="Inicio"><img src="/t/{{.ID}}/crest?v={{.Crest}}" alt=""></a>{{else}}<a class="crest" href="/t/{{.ID}}" aria-label="Inicio">{{initials .Name}}</a>{{end}}{{else}}<a class="logo" href="/" aria-label="Inicio">P<span>.</span></a>{{end}}
   {{if and .Team (or .User.Admin (gt (len .Teams) 1))}}
   {{/* Enlaces y no <select> + JS: sin navegación construida en el cliente. */}}
   <details class="team-switch">
