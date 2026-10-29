@@ -20,8 +20,10 @@
   {{/* Enlaces y no <select> + JS: sin navegación construida en el cliente. */}}
   <details class="team-switch">
     <summary>{{.Team.Name}} <svg class="i"><use href="#i-chevron"/></svg></summary>
-    <ul>{{range .Teams}}{{if ne .ID $.Team.ID}}<li><a href="/t/{{.ID}}/{{if $.Tab}}{{$.Tab}}{{else}}trainings{{end}}">{{.Name}}</a></li>{{end}}{{end}}
-      {{if .User.Admin}}<li class="all"><a href="/">Todos los equipos · + Nuevo equipo</a></li>{{end}}</ul>
+    <ul>{{range .Teams}}{{if ne .ID $.Team.ID}}<li><a href="/t/{{.ID}}/{{if $.Tab}}{{$.Tab}}{{else}}trainings{{end}}">{{template "teamMark" .}}<span>{{.Name}}</span></a></li>{{end}}{{end}}
+      {{if .User.Admin}}<li class="sep"></li>
+      <li class="act"><a href="/"><span class="ts-ico"><svg class="i"><use href="#i-grid"/></svg></span><span>Todos los equipos</span></a></li>
+      <li class="act"><a href="/#nuevo"><span class="ts-ico"><svg class="i"><use href="#i-plus"/></svg></span><span>Nuevo equipo</span></a></li>{{end}}</ul>
   </details>
   {{else}}
   <h1>{{with .Team}}{{.Name}}{{else}}Equipos{{end}}</h1>
@@ -71,12 +73,16 @@
 <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5M5 12v8h14v-8"/></symbol>
 <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 6.5h16M9.5 6.5V4h5v2.5M6.5 6.5l1 13.5h9l1-13.5"/></symbol>
 <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></symbol>
 <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s6.5-6 6.5-11a6.5 6.5 0 0 0-13 0c0 5 6.5 11 6.5 11z"/><circle cx="12" cy="10" r="2.3"/></symbol>
 <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
 </svg>{{end}}
 
-{{/* Logo de la app: P geométrica y el punto verde del nombre. */}}
-{{define "logo"}}<svg viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="10" fill="#191b17"/><path d="M13 31V13a2.5 2.5 0 0 1 2.5-2.5h6.5a5 5 0 0 1 5 5v0a5 5 0 0 1-5 5H13" fill="none" stroke="#f3f1eb" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><rect x="27" y="26.5" width="5" height="5" rx="1.6" fill="#4cbb7c"/></svg>{{end}}
+{{/* Marca de un equipo en listas: su escudo o sus iniciales en su color. */}}
+{{define "teamMark"}}{{if .Crest}}<img class="ts-mark" src="/t/{{.ID}}/crest?v={{.Crest}}" alt="">{{else}}<span class="ts-mark" style="--c:{{.Color}}">{{initials .Name}}</span>{{end}}{{end}}
+
+{{/* Logo de la app: P deportiva con líneas de velocidad y el punto verde del nombre. */}}
+{{define "logo"}}<svg viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="10" fill="#191b17"/><g transform="skewX(-12) translate(4 0)"><path d="M12 31V9.5h9.5a6.25 6.25 0 0 1 0 12.5H17.5V31z" fill="#f3f1eb"/><rect x="17.5" y="13.8" width="4.2" height="4.4" rx="2" fill="#191b17"/></g><circle cx="29.5" cy="28.5" r="2.9" fill="#4cbb7c"/><path d="M4.5 25.5h4M3.5 29h4" stroke="#4cbb7c" stroke-width="1.6" stroke-linecap="round"/></svg>{{end}}
 
 {{/* Volver a la lista de la sección: arriba, como en cualquier app. */}}
 {{define "back"}}<a class="back" href="{{.href}}"><svg class="i"><use href="#i-back"/></svg>{{.label}}</a>{{end}}

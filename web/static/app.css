@@ -227,7 +227,19 @@ ul.breakdown li b { margin-left: auto; }
 .team-switch summary::-webkit-details-marker { display: none; }
 .team-switch ul { position: absolute; z-index: 2; left: 0; top: 100%; margin: 6px 0 0; padding: 6px 0; list-style: none; min-width: 200px;
   background: var(--card); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,.15); }
-.team-switch li a { display: block; padding: 10px 14px; text-decoration: none; color: var(--fg); }
+.team-switch ul { padding: 6px; border-radius: 12px; min-width: 240px; }
+.team-switch li a { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; text-decoration: none; color: var(--fg);
+  font: 600 15px/1.2 system-ui, sans-serif; }
+@media (hover: hover) { .team-switch li a:hover { background: var(--bg); } }
+.team-switch li a:active { background: var(--bg); }
+.ts-mark { width: 30px; height: 30px; flex-shrink: 0; border-radius: 8px; object-fit: contain; display: grid; place-items: center;
+  font: 700 14px/1 var(--display); background: var(--c, var(--team)); color: #fff; }
+img.ts-mark { background: none; }
+.ts-ico { width: 30px; height: 30px; flex-shrink: 0; border-radius: 8px; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); }
+.ts-ico svg.i { width: 18px; height: 18px; }
+.team-switch li.act a { color: var(--accent); }
+.team-switch li.sep { height: 1px; margin: 6px 4px; background: var(--line); }
 /* Formularios plegados tras un botón. */
 details.add { margin: 20px 0 12px; }
 details.add > summary { list-style: none; display: inline-block; }
@@ -405,8 +417,6 @@ li.pick.blocked label { cursor: not-allowed; opacity: .6; }
 #notas .sub { margin: 10px 0 2px; }
 #notas .notes { margin: 0; }
 .notes.improve { border-left: 3px solid var(--warn); padding-left: 8px; }
-.team-switch li.all { border-top: 1px solid var(--line); margin-top: 4px; }
-.team-switch li.all a { color: var(--accent); font-weight: 600; }
 .danger-zone { margin-top: 32px; border-color: color-mix(in srgb, var(--bad) 40%, var(--line)); }
 .danger-zone h3 { margin: 0 0 4px; font-size: 16px; color: var(--bad); }
 
