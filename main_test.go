@@ -23,6 +23,27 @@ func TestNotReady(t *testing.T) {
 	}
 }
 
+func TestLazyAppFallback(t *testing.T) {
+	t.Setenv("DATABASE_URL_FILE", "")
+	t.Setenv("DEV_USER", "coach@test.dev")
+	t.Setenv("K_SERVICE", "")
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /health", health)
+	mux.HandleFunc("/", notReady)
+	l := &lazyApp{fallback: mux}
+	if err := l.try(context.Background()); err == nil {
+		t.Fatal("try sin BD: want error")
+	}
+	for path, want := range map[string]int{"/health": http.StatusOK, "/": http.StatusServiceUnavailable} {
+		rec := httptest.NewRecorder()
+		l.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
+		if rec.Code != want {
+			t.Fatalf("%s = %d, want %d", path, rec.Code, want)
+		}
+	}
+	l.close()
+}
+
 func TestDbcheckWithoutConfig(t *testing.T) {
 	t.Setenv("DATABASE_URL_FILE", "")
 	rec := httptest.NewRecorder()
