@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -50,6 +51,59 @@ func newApp(ctx context.Context) (*app, error) {
 	return &app{st: store{db: db}, auth: a, pages: pages}, nil
 }
 
+// lazyApp sirve 503 (fallback) hasta que newApp funciona y reintenta con
+// espera creciente: una caída de la BD al arrancar no deja la instancia
+// colgada en 503 hasta el próximo deploy.
+type lazyApp struct {
+	fallback http.Handler
+	app      atomic.Pointer[app]
+	handler  atomic.Pointer[http.Handler]
+}
+
+// try monta la app; el primer intento va antes de escuchar, para que un
+// arranque en frío normal no sirva ningún 503.
+func (l *lazyApp) try(ctx context.Context) error {
+	a, err := newApp(ctx)
+	if err != nil {
+		return err
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /health", health)
+	mux.HandleFunc("GET /dbcheck", dbcheck)
+	a.routes(mux)
+	h := canonicalHost(a.auth.cfg.BaseURL, mux)
+	l.app.Store(a)
+	l.handler.Store(&h)
+	return nil
+}
+
+func (l *lazyApp) retry(ctx context.Context, err error) {
+	for wait := 5 * time.Second; err != nil; wait = min(wait*2, 5*time.Minute) {
+		slog.Error("app sin arrancar, se sirve 503 y se reintenta", "err", err, "en", wait.String())
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(wait):
+		}
+		err = l.try(ctx)
+	}
+	slog.Info("app arrancada tras reintentar")
+}
+
+func (l *lazyApp) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if h := l.handler.Load(); h != nil {
+		(*h).ServeHTTP(w, r)
+		return
+	}
+	l.fallback.ServeHTTP(w, r)
+}
+
+func (l *lazyApp) close() {
+	if a := l.app.Load(); a != nil {
+		_ = a.st.db.Close()
+	}
+}
+
 func health(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
@@ -85,15 +139,13 @@ func main() {
 	// /healthz la contesta su frontend con un 404 sin llegar al contenedor.
 	mux.HandleFunc("GET /health", health)
 	mux.HandleFunc("GET /dbcheck", dbcheck)
-	var handler http.Handler = mux
-	if a, err := newApp(ctx); err != nil {
-		slog.Error("app sin arrancar, se sirve 503", "err", err)
-		mux.HandleFunc("/", notReady)
-	} else {
-		defer func() { _ = a.st.db.Close() }()
-		a.routes(mux)
-		handler = canonicalHost(a.auth.cfg.BaseURL, mux)
+	mux.HandleFunc("/", notReady)
+	ready := &lazyApp{fallback: mux}
+	if err := ready.try(ctx); err != nil {
+		go ready.retry(ctx, err)
 	}
+	defer ready.close()
+	var handler http.Handler = ready
 
 	// otelhttp: un span por petición y las métricas http.server.* (duración,
 	// tamaño) etiquetadas por ruta y código de estado. /health queda fuera
